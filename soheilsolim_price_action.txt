@@ -1,0 +1,115 @@
+//@version=6
+//soheilsolim
+strategy("Price Action PRO – NeedoShop (Final Fixed)",
+     overlay=true,
+     default_qty_type=strategy.percent_of_equity,
+     default_qty_value=10)
+
+// ───── Inputs ─────
+rr       = input.float(2.0, "Risk / Reward", step=0.5)
+swingLen = input.int(5, "Swing Length")
+
+// ───── Market Structure ─────
+ph = ta.pivothigh(high, swingLen, swingLen)
+pl = ta.pivotlow(low, swingLen, swingLen)
+
+var float lastHigh = na
+var float lastLow  = na
+
+if not na(ph)
+    lastHigh := ph
+
+if not na(pl)
+    lastLow := pl
+
+upTrend = (
+    (not na(lastHigh)) and
+    (not na(lastLow)) and
+    (close > lastLow)
+)
+
+downTrend = (
+    (not na(lastHigh)) and
+    (not na(lastLow)) and
+    (close < lastHigh)
+)
+
+// ───── Support / Resistance ─────
+support    = lastLow
+resistance = lastHigh
+
+// ───── Candle Anatomy ─────
+body      = math.abs(close - open)
+upperWick = high - math.max(close, open)
+lowerWick = math.min(close, open) - low
+
+bullPin = (
+    (lowerWick > body * 2) and
+    (upperWick < body)
+)
+
+bearPin = (
+    (upperWick > body * 2) and
+    (lowerWick < body)
+)
+
+bullEngulf = (
+    (close > open) and
+    (close > open[1]) and
+    (open <= close[1])
+)
+
+bearEngulf = (
+    (close < open) and
+    (close < open[1]) and
+    (open >= close[1])
+)
+
+insideBar = (
+    (high < high[1]) and
+    (low > low[1])
+)
+
+// ───── Location Filters ─────
+nearSupport = (
+    (not na(support)) and
+    (low <= support * 1.002)
+)
+
+nearResistance = (
+    (not na(resistance)) and
+    (high >= resistance * 0.998)
+)
+
+// ───── Entries ─────
+longEntry = (
+    (upTrend) and
+    (nearSupport) and
+    (bullPin or bullEngulf or insideBar)
+)
+
+shortEntry = (
+    (downTrend) and
+    (nearResistance) and
+    (bearPin or bearEngulf or insideBar)
+)
+
+if (longEntry)
+    strategy.entry("BUY", strategy.long)
+
+if (shortEntry)
+    strategy.entry("SELL", strategy.short)
+
+// ───── Risk Management ─────
+longSL = support
+longTP = close + (close - longSL) * rr
+
+shortSL = resistance
+shortTP = close - (shortSL - close) * rr
+
+strategy.exit("BUY Exit", "BUY", stop=longSL, limit=longTP)
+strategy.exit("SELL Exit", "SELL", stop=shortSL, limit=shortTP)
+
+// ───── Plot ─────
+plot(support, "Support", color=color.green, style=plot.style_linebr)
+plot(resistance, "Resistance", color=color.red, style=plot.style_linebr)
